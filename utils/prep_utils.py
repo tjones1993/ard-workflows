@@ -338,6 +338,18 @@ def s3_calc_scene_size(scene_name, s3_bucket, prefix):
     return r
 
 
+def s3_download(s3_bucket, s3_obj_path, dest_path):
+    client, bucket = s3_create_client(s3_bucket)
+    
+    try:
+        bucket.download_file(s3_obj_path, dest_path)
+    except botocore.exceptions.ClientError as e:
+        if e.response['Error']['Code'] == "404":
+            print("The object does not exist.")
+        else:
+            raise
+
+
 """rio_cogeo.cogeo: translate a file to a cloud optimized geotiff."""
 def cog_translate(
         src_path,
