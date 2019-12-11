@@ -328,6 +328,13 @@ def s3_list_objects(s3_bucket, prefix):
     return response
 
 
+def s3_list_objects_paths(s3_bucket, prefix):
+    """List of paths only returned, not full object responses"""
+    client, bucket = s3_create_client(s3_bucket)
+    
+    return [e['Key'] for p in client.get_paginator("list_objects_v2").paginate(Bucket=s3_bucket, Prefix=prefix) for e in p['Contents']]
+
+
 def s3_calc_scene_size(scene_name, s3_bucket, prefix):
     """
     Assumes prefix is directory of scenes like scene_name...
