@@ -11,6 +11,9 @@ import numpy as np
 import shutil
 import logging
 import logging.handlers
+from dateutil.parser import parse
+import uuid
+
 
 from . dc_water_classifier import wofs_classify
 from . dc_clean_mask import landsat_qa_clean_mask
@@ -63,6 +66,85 @@ def conv_sgl_wofs_cog(in_path, out_path):
 #         ds = None 
 #     else:
 #         print ('not updated nodata')
+
+
+def yaml_prep_wofs(scene_dir, original_yml):
+    """
+    Prepare individual wofs directory containing L8/S2/S1 cog water products.
+    """
+    # scene_name = scene_dir.split('/')[-2][:26]
+    scene_name = scene_dir.split('/')[-2]
+    print ( "Preparing scene {}".format(scene_name) )
+    print ( "Scene path {}".format(scene_dir) )
+    
+    # find all cog prods
+    prod_paths = glob.glob(scene_dir + '*water.tif')
+    # print ( 'paths: {}'.format(prod_paths) )
+    # for i in prod_paths: print ( i )
+    
+    # date time assumed eqv for start and stop - this isn't true and could be 
+    # pulled from .xml file (or scene dir) not done yet for sake of progression
+    t0=parse(str(datetime.strptime(original_yml['extent']['center_dt'], '%Y-%m-%d %H:%M:%S')))
+    # print ( t0 )
+    t1=t0
+    # print ( t1 )
+    
+    # get polorisation from each image product (S2 band)
+#     images = {
+#         band_name_l8(prod_path): {
+#             'path': str(prod_path.split('/')[-1])
+#         } for prod_path in prod_paths
+#     }
+
+    images = { 'water': { 'path': str(prod_paths[0].split('/')[-1]) } }
+    
+    #     print ( images )
+    
+    # trusting bands coaligned, use one to generate spatial bounds for all
+#     projection, extent = get_geometry('/'.join([str(scene_dir), images['blue']['path']]))
+    
+    # parse esa l2a prod metadata file for reference
+#     scene_genesis =  glob.glob(scene_dir + '*.xml')[0]
+#     if os.path.exists(scene_genesis):
+#         scene_genesis = os.path.basename(scene_genesis)
+#     else:
+#         scene_genesis = ' '
+    
+    new_id = str(uuid.uuid5(uuid.NAMESPACE_URL, scene_name))
+#     print ('New uuid: {}'.format(new_id))
+    
+    return {
+        'id': new_id,
+        'processing_level': original_yml['processing_level'],
+        'product_type': "water",
+        'creation_dt': str(datetime.today().strftime('%Y-%m-%d %H:%M:%S')),
+        'platform': {  
+            'code': original_yml['platform']['code']
+        },
+        'instrument': {
+            'name': original_yml['instrument']['name']
+        },
+        'extent': {
+            'coord': original_yml['extent']['coord'],
+            'from_dt': str(t0),
+            'to_dt': str(t1),
+            'center_dt': str(t0 + (t1 - t0) / 2)
+        },
+        'format': {
+            'name': 'GeoTiff'
+        },
+        'grid_spatial': {
+            'projection': original_yml['grid_spatial']['projection']
+        },
+        'image': {
+            'bands': images
+        },
+        'lineage': {
+            'source_datasets': original_yml['lineage']['source_datasets'],
+        }  
+
+    }
+    
 
     
 def per_scene_wofs(optical_yaml_path, s3_source=True, s3_bucket='public-eo-data', s3_dir='common_sensing/fiji/wofsdefault/', inter_dir='../tmp/data/intermediate/'):
@@ -175,7 +257,7 @@ def per_scene_wofs(optical_yaml_path, s3_source=True, s3_bucket='public-eo-data'
             
         try:
             root.info(f"{scene_name} Creating yaml")
-            create_yaml(cog_dir, 'wofs', yml_meta) # assumes majority of meta copied from original product yml
+            create_yaml(cog_dir, yaml_prep_wofs(cog_dir, yml_meta)) # assumes majority of meta copied from original product yml
             root.info(f"{scene_name} Created yaml")
         except:
             root.exception(f"{scene_name} yam not created")

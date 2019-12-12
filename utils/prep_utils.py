@@ -20,6 +20,7 @@ from rasterio.enums import Resampling
 from rasterio.env import GDALVersion
 from rasterio.io import MemoryFile
 from rasterio.shutil import copy
+import numpy as np
 
 
 def to_cog(input_file, output_file):
@@ -415,8 +416,8 @@ def cog_translate(
 
                         if nodata is not None:
                             mask_value = (
-                                    numpy.all(matrix != nodata, axis=0).astype(
-                                        numpy.uint8
+                                    np.all(matrix != nodata, axis=0).astype(
+                                        np.uint8
                                     )
                                     * 255
                             )
